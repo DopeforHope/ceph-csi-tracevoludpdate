@@ -49,18 +49,21 @@ PARSER.add_argument("-c", "--command", default="oc",
                     help="kubectl or oc command")
 PARSER.add_argument("-k", "--kubeconfig", default="",
                     help="kubernetes configuration")
-PARSER.add_argument("-n", "--namespace", default="default",
+PARSER.add_argument("-n", "--namespace", default="",
                     help="namespace in which pvc created")
-PARSER.add_argument("-t", "--toolboxdeployed", type=bool, default=True,
+PARSER.add_argument("--all-namespaces", dest="allnamespaces",
+                    action="store_true",
+                    help="search all namespaces for pvc, -n has precedence")
+PARSER.add_argument("-t", "--toolboxdeployed", action="store_false",
                     help="is rook toolbox deployed")
-PARSER.add_argument("-d", "--debug", type=bool, default=False,
+PARSER.add_argument("-d", "--debug", action="store_true",
                     help="log commands output")
 PARSER.add_argument("-rn", "--rooknamespace",
                     default="rook-ceph", help="rook namespace")
 PARSER.add_argument("-id", "--userid",
                     default="admin", help="user ID to connect to ceph cluster")
-PARSER.add_argument("-key", "--userkey",
-                    default="", help="user password to connect to ceph cluster")
+PARSER.add_argument("-key", "--userkey", default="",
+                    help="user password to connect to ceph cluster")
 PARSER.add_argument("-cm", "--configmap", default="ceph-csi-config",
                     help="configmap name which holds the cephcsi configuration")
 PARSER.add_argument("-cmn", "--configmapnamespace", default="default",
@@ -73,13 +76,15 @@ def list_pvc_vol_name_mapping(arg):
     """
     table_rbd = prettytable.PrettyTable()
     table_rbd.title = "RBD"
-    table_rbd.field_names = ["PVC Name", "PV Name", "Image Name", "PV name in omap",
-                             "Image ID in omap", "Image in cluster"]
+    table_rbd.field_names = ["PVC Name", "PV Name", "Image Name",
+                             "PV name in omap", "Image ID in omap",
+                             "Image in cluster"]
 
     table_cephfs = prettytable.PrettyTable()
     table_cephfs.title = "CephFS"
-    table_cephfs.field_names = ["PVC Name", "PV Name", "Subvolume Name", "PV name in omap",
-                                "Subvolume ID in omap", "Subvolume in cluster"]
+    table_cephfs.field_names = ["PVC Name", "PV Name", "Subvolume Name",
+                                "PV name in omap", "Subvolume ID in omap",
+                                "Subvolume in cluster"]
 
     cmd = [arg.command]
 
@@ -88,12 +93,15 @@ def list_pvc_vol_name_mapping(arg):
             cmd += ["--config", arg.kubeconfig]
         else:
             cmd += ["--kubeconfig", arg.kubeconfig]
-    cmd += ["--namespace", arg.namespace]
+    if arg.namespace != "":
+        cmd += ["--namespace", arg.namespace]
     if arg.pvcname != "":
         cmd += ['get', 'pvc', arg.pvcname, '-o', 'json']
         # list all pvc and get mapping
     else:
         cmd += ['get', 'pvc', '-o', 'json']
+    if arg.allnamespaces:
+        cmd += ["--all-namespaces"]
 
     with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as out:
         stdout, stderr = out.communicate()
